@@ -1,0 +1,23 @@
+{
+  // Usare IntelliSense per informazioni sui possibili attributi.
+  // Al passaggio del mouse vengono visualizzate le descrizioni degli attributi esistenti.
+  // Per altre informazioni, visitare: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [{
+    "name": "Launch",
+    "type": "go",
+    "request": "launch",
+    "mode": "auto",
+    "program": "${workspaceFolder}\\src\\main.go",
+    "env": {
+      "MONGODB_URL": "mongodb://localhost:27017",
+      "MONGODB_DB": "aniapi",
+      "PROXY_HOST": "p.webshare.io",
+      "PROXY_USER": "hyeelyfb",
+      "PROXY_PASSWORD": "httnu2kotyyx",
+      "PROXY_PORT": "80",
+      "PROXY_COUNT": "100"
+    },
+    "args": []
+  }]
+}
