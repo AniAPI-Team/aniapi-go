@@ -2,6 +2,7 @@ package models
 
 import (
 	"aniapi-go/database"
+	"aniapi-go/utils"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -113,6 +114,109 @@ func isTitleDuplicate(l []string, t string) bool {
 	}
 
 	return duplicate
+}
+
+// GetAnime returns an existing anime model
+func GetAnime(id int) (*Anime, error) {
+	anime := &Anime{}
+
+	filter := bson.M{
+		"id": id,
+	}
+
+	ctx := database.GetContext(10)
+	err := database.GetCollection(AnimeCollectionName).FindOne(ctx, filter).Decode(anime)
+
+	if err != nil {
+		return anime, err
+	}
+
+	return anime, nil
+}
+
+// FindAnimes returns a paginated list of filtered animes
+func FindAnimes(title string, genres []string, showType string, page *utils.PageInfo, sort string, desc bool) ([]Anime, error) {
+	animes := make([]Anime, page.Size)
+
+	filter := bson.M{
+		"$or": []interface{}{
+			bson.M{
+				"main_title": bson.M{
+					"$regex": primitive.Regex{
+						Pattern: ".*" + title + ".*", Options: "i",
+					},
+				},
+			},
+			bson.M{
+				"alternatives_title": bson.M{
+					"$in": []primitive.Regex{
+						primitive.Regex{
+							Pattern: ".*" + title + ".*", Options: "i",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if len(genres) > 0 {
+		f := []primitive.Regex{}
+
+		for _, g := range genres {
+			f = append(f, primitive.Regex{
+				Pattern: g,
+				Options: "i",
+			})
+		}
+
+		filter["genres"] = bson.M{
+			"$in": f,
+		}
+	}
+
+	if showType != "" {
+		filter["type"] = bson.M{
+			"$regex": primitive.Regex{
+				Pattern: ".*" + showType + ".*", Options: "i",
+			},
+		}
+	}
+
+	pagination := database.PaginateQuery(page)
+
+	if sort != "" {
+		direction := 1
+
+		if desc {
+			direction = -1
+		}
+
+		pagination.SetSort(bson.M{
+			sort: direction,
+		})
+	}
+
+	ctx := database.GetContext(10)
+	cur, err := database.GetCollection(AnimeCollectionName).Find(ctx, filter, pagination)
+
+	if err != nil {
+		return animes, err
+	}
+
+	defer cur.Close(ctx)
+
+	i := 0
+	for cur.Next(ctx) {
+		err = cur.Decode(&animes[i])
+
+		if err != nil {
+			return animes, err
+		}
+
+		i++
+	}
+
+	return animes[0:i], nil
 }
 
 // Save create or update an anime model on MongoDB

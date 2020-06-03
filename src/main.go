@@ -1,6 +1,7 @@
 package main
 
 import (
+	"aniapi-go/api"
 	"aniapi-go/database"
 	"aniapi-go/engine"
 	"log"
@@ -11,12 +12,12 @@ import (
 func main() {
 	server := engine.NewServer()
 
-	//server.Handle("/api")
+	server.Handle("/api/.*", api.Router)
 
 	database.Init()
 
-	scraper := engine.NewScraper()
-	scraper.Start()
+	//scraper := engine.NewScraper()
+	//scraper.Start()
 
 	port := os.Getenv("PORT")
 	if port == "" {

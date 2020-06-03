@@ -32,6 +32,12 @@ func (res *Response) NotImplemented() {
 	res.Write(http.StatusNotImplemented, "Not implemented")
 }
 
+// TooManyRequests is used to setup the response to 429 status code
+func (res *Response) TooManyRequests() {
+	res.DefaultError = false
+	res.Write(http.StatusTooManyRequests, "Too many requests")
+}
+
 // NotAuthorized is used to setup the response to 401 status code
 func (res *Response) NotAuthorized() {
 	res.DefaultError = false

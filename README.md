@@ -1,7 +1,7 @@
 # AniAPI Golang
-AniAPI is a REST API meant to expose a collection of **anime**'s streaming videos available across the web.
+AniAPI Golang is a REST API meant to expose a collection of **anime**'s streaming videos available across the web.
 
-It uses[MyAnimeList](https://myanimelist.net) as resource validator, to ensure a minimum quality level.
+It uses [MyAnimeList](https://myanimelist.net) as resource validator, to ensure a minimum quality level.
 
 ## Requirements
 * Golang 1.14
