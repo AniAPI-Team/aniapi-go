@@ -2,6 +2,7 @@ package models
 
 import (
 	"aniapi-go/database"
+	"aniapi-go/utils"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -57,6 +58,90 @@ func (e *Episode) IsValid() bool {
 	}
 
 	return true
+}
+
+// GetEpisode returns an existing episode model
+func GetEpisode(animeID int, number int, region string) (*Episode, error) {
+	episode := &Episode{}
+
+	filter := bson.M{
+		"anime_id": animeID,
+		"number":   number,
+	}
+
+	if region != "" {
+		filter["region"] = region
+	}
+
+	ctx := database.GetContext(10)
+	err := database.GetCollection(EpisodeCollectionName).FindOne(ctx, filter).Decode(episode)
+
+	if err != nil {
+		return episode, err
+	}
+
+	return episode, nil
+}
+
+// FindEpisodes returns a paginated list of filtered episodes
+func FindEpisodes(animeID int, from string, region string, page *utils.PageInfo, sort string, desc bool) ([]Episode, error) {
+	episodes := make([]Episode, page.Size)
+
+	filter := bson.M{
+		"anime_id": animeID,
+	}
+
+	if from != "" {
+		filter["from"] = bson.M{
+			"$regex": primitive.Regex{
+				Pattern: ".*" + from + ".*", Options: "i",
+			},
+		}
+	}
+
+	if region != "" {
+		filter["region"] = bson.M{
+			"$regex": primitive.Regex{
+				Pattern: ".*" + region + ".*", Options: "i",
+			},
+		}
+	}
+
+	pagination := database.PaginateQuery(page)
+
+	if sort != "" {
+		direction := 1
+
+		if desc {
+			direction = -1
+		}
+
+		pagination.SetSort(bson.M{
+			sort: direction,
+		})
+	}
+
+	ctx := database.GetContext(10)
+	cur, err := database.GetCollection(EpisodeCollectionName).Find(ctx, filter, pagination)
+
+	if err != nil {
+		return episodes, err
+	}
+
+	defer cur.Close(ctx)
+
+	i := 0
+	for cur.Next(ctx) {
+		err = cur.Decode(&episodes[i])
+
+		if err != nil {
+			return episodes, err
+		}
+
+		i++
+	}
+
+	return episodes[0:i], nil
 }
 
 // Save create or update an episode model on MongoDB

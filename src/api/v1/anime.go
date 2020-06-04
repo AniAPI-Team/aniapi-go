@@ -16,16 +16,16 @@ func AnimeHandler(w *engine.Response, r *engine.Request) {
 	switch r.Data.Method {
 	case "GET":
 		if r.NeedSingleResource {
-			getOne(w, r)
+			getOneAnime(w, r)
 		} else {
-			getMore(w, r)
+			getMoreAnime(w, r)
 		}
 	default:
 		w.NotImplemented()
 	}
 }
 
-func getOne(w *engine.Response, r *engine.Request) {
+func getOneAnime(w *engine.Response, r *engine.Request) {
 	id, err := strconv.Atoi(r.Params[0])
 
 	if err != nil {
@@ -50,7 +50,7 @@ func getOne(w *engine.Response, r *engine.Request) {
 	w.WriteJSON(http.StatusOK, string(json))
 }
 
-func getMore(w *engine.Response, r *engine.Request) {
+func getMoreAnime(w *engine.Response, r *engine.Request) {
 	pageNumber, _ := strconv.Atoi(r.Query["page"])
 	page := utils.GetPageInfo(pageNumber)
 
