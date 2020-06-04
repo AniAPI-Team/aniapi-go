@@ -139,7 +139,7 @@ func FindAnimes(title string, genres []string, showType string, page *utils.Page
 	animes := make([]Anime, page.Size)
 
 	filter := bson.M{
-		"$or": []interface{}{
+		"$or": bson.A{
 			bson.M{
 				"main_title": bson.M{
 					"$regex": primitive.Regex{
