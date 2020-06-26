@@ -16,14 +16,16 @@ func main() {
 
 	database.Init()
 
-	//scraper := engine.NewScraper()
-	//scraper.Start()
-
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 		log.Printf("PORT env var not found, using 8080 as default")
 	}
+
+	go engine.StartQueue()
+
+	scraper := engine.NewScraper()
+	go scraper.Start()
 
 	err := http.ListenAndServe(":"+port, server)
 

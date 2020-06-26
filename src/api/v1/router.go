@@ -9,6 +9,14 @@ func Router(controller string, w *engine.Response, r *engine.Request) {
 		AnimeHandler(w, r)
 	case "episode":
 		EpisodeHandler(w, r)
+	case "matching":
+		MatchingHandler(w, r)
+	case "notification":
+		NotificationHandler(w, r)
+	case "queue":
+		QueueHandler(w, r)
+	case "scraper":
+		ScraperHandler(w, r)
 	default:
 		w.NotFound()
 	}
