@@ -3,6 +3,7 @@ package models
 import (
 	"aniapi-go/database"
 	"aniapi-go/utils"
+	"fmt"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -71,6 +72,10 @@ func (a *Anime) IsValid() bool {
 		}
 	}
 
+	if a.Type == "" {
+		valid = false
+	}
+
 	filter := bson.M{
 		"main_title": a.MainTitle,
 	}
@@ -95,8 +100,21 @@ func (a *Anime) IsValid() bool {
 		ref.Genres = a.Genres
 		ref.Picture = a.Picture
 		ref.Score = a.Score
+
+		if ref.Status != a.Status {
+			sBefore := convertAnimeStatusToString(ref.Status)
+			sAfter := convertAnimeStatusToString(a.Status)
+
+			n := &Notification{
+				AnimeID:   ref.ID,
+				AnilistID: ref.AniListID,
+				Message:   fmt.Sprintf("Status changed from <b>%s</b> to <b>%s</b>", sBefore, sAfter),
+				Type:      TypeAnimeChange,
+			}
+			n.Save()
+		}
+
 		ref.Status = a.Status
-		// TODO: VERIFICARE CAMBIAMENTO STATO E NEL CASO AGGIUNGERE NOTIFICA
 		ref.Type = a.Type
 		*a = *ref
 	}
@@ -285,4 +303,16 @@ func getNextAvailableID() int {
 	}
 
 	return -1
+}
+
+func convertAnimeStatusToString(status AnimeStatus) string {
+	if status == 0 {
+		return "Completed"
+	} else if status == 1 {
+		return "Airing"
+	} else if status == 2 {
+		return "Coming soon"
+	}
+
+	return "Unknown"
 }

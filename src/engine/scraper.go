@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/gocolly/colly"
 	"github.com/gocolly/colly/extensions"
@@ -22,8 +23,9 @@ type ScraperModule interface {
 // Scraper is the data definition of the scraper engine
 type Scraper struct {
 	current int
-	running bool
 	Modules []ScraperModule
+	running bool
+	start   time.Time
 }
 
 var proxies []*url.URL
@@ -34,6 +36,7 @@ func (s *Scraper) Start() {
 	s.loadProxies()
 
 	s.running = true
+	s.start = time.Now()
 	s.UpdateProcess(0)
 
 	mal := NewMALSearch(s)
@@ -41,12 +44,21 @@ func (s *Scraper) Start() {
 
 	s.running = false
 	s.UpdateProcess(-1)
+
+	time.Sleep(6 * time.Hour)
+	s.Start()
 }
 
 // UpdateProcess updates scraper process info on MongoDB
 func (s *Scraper) UpdateProcess(id int) {
 	s.current = id
-	// salvataggio MongoDB
+
+	ss := &models.Scraper{
+		AnimeID:   s.current,
+		StartTime: s.start,
+	}
+
+	ss.Save()
 }
 
 func (s *Scraper) loadProxies() {
@@ -55,6 +67,10 @@ func (s *Scraper) loadProxies() {
 	user := os.Getenv("PROXY_USER")
 	password := os.Getenv("PROXY_PASSWORD")
 	count, _ := strconv.Atoi(os.Getenv("PROXY_COUNT"))
+
+	if len(proxies) > 0 {
+		return
+	}
 
 	for i := 1; i <= count; i++ {
 		u := "http://" + user + "-" + strconv.Itoa(i) + ":" + password + "@" + host + ":" + port
@@ -89,7 +105,6 @@ func getBestProxy(pr *http.Request) (*url.URL, error) {
 		}
 	}
 
-	//log.Printf("CHOSEN PROXY %s WITH %d USES", selected.String(), best)
 	proxiesUses[bestSelected]++
 	return selected, nil
 }

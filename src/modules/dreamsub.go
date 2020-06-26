@@ -19,7 +19,7 @@ type Dreamsub struct{}
 // Start the scraping flow
 func (d Dreamsub) Start(a *models.Anime) {
 	titles := append([]string{a.MainTitle}, a.AlternativesTitle...)
-	match, count := findMatch(titles)
+	match, count := findMatch(titles, a.ID)
 
 	if match != "" {
 		if count == 1 {
@@ -31,11 +31,13 @@ func (d Dreamsub) Start(a *models.Anime) {
 	}
 }
 
-func findMatch(titles []string) (string, int) {
+func findMatch(titles []string, id int) (string, int) {
 	match := ""
 	episodes := 0
 	best := 99
 	ratio := 0.0
+
+	var otherMatches []*models.Matching
 
 	for _, title := range titles {
 		query := "https://dreamsub.stream/search/?q=" + url.QueryEscape(title)
@@ -44,35 +46,61 @@ func findMatch(titles []string) (string, int) {
 		c.OnHTML("#main-content .goblock", func(e *colly.HTMLElement) {
 			e.ForEach(".tvBlock", func(_ int, el *colly.HTMLElement) {
 				target := strings.ToLower(el.DOM.Find(".tvTitle .title").Text())
-				source := strings.ToLower(title)
+				source := strings.Replace(strings.ToLower(title), ":", "", -1)
 
 				score := fuzzy.RankMatch(source, target)
 
 				bigger := math.Max(float64(len(source)), float64(len(target)))
 				r := (bigger - float64(score)) / bigger
 
-				if score < best && score != -1 && score <= 1 {
-					desc, _ := el.DOM.Find(".desc").Html()
-					part := strings.Split(desc, "<br/>")[1]
+				desc, _ := el.DOM.Find(".desc").Html()
+				part := strings.Split(desc, "<br/>")[1]
+				eps, _ := strconv.Atoi(strings.Replace(strings.TrimSpace(strings.Replace(part, "<b>Episodi</b>:", "", 1)), "+", "", 1))
 
+				if score < best && score != -1 && score <= 1 {
 					best = score
 					match, _ = el.DOM.Find(".showStreaming a").Eq(0).Attr("href")
-					episodes, _ = strconv.Atoi(strings.Replace(strings.TrimSpace(strings.Replace(part, "<b>Episodi</b>:", "", 1)), "+", "", 1))
+
+					episodes = eps
 
 					ratio = r
 				}
 
-				if score != -1 && score < 6 && best != 99 {
-					log.Printf("POSSIBLE MATCH ON %s WITH %d SCORE (%f RATIO)", target, score, r)
+				if (score > 1 && len(source) > 2) || (len(source) <= 2 && score > 1 && score <= 10) {
+					url, _ := el.DOM.Find(".showStreaming a").Eq(0).Attr("href")
+					otherMatches = append(otherMatches, &models.Matching{
+						AnimeID:  id,
+						Episodes: eps,
+						From:     "dreamsub",
+						Ratio:    r,
+						Title:    target,
+						URL:      "https://dreamsub.stream" + url,
+					})
 				}
 			})
 		})
 
 		c.Visit(query)
+
+		if match == "" {
+			for _, m := range otherMatches {
+				m.Save()
+			}
+		}
 	}
 
 	if match != "" {
 		log.Printf("MATCHED ON %s WITH %d SCORE (%f RATIO) AND %d EPISODES", match, best, ratio, episodes)
+	} else {
+		matches, err := models.FindMatchings(id, "dreamsub", "votes", true)
+
+		if err == nil && len(matches) > 0 {
+			if matches[0].Votes > 0 {
+				match = "/" + strings.Join(strings.Split(matches[0].URL, "/")[3:5], "/")
+				episodes = matches[0].Episodes
+				log.Printf("VOTE MATCHED ON %s WITH %d VOTES AND %d EPISODES", match, matches[0].Votes, matches[0].Episodes)
+			}
+		}
 	}
 
 	return match, episodes
@@ -96,6 +124,10 @@ func getEpisodes(uri string, anime *models.Anime) {
 				title = strings.TrimSpace(parts[1])
 			}
 			link, _ := el.DOM.Find(".sli-name a").Attr("href")
+
+			if title == "TBA" {
+				return true
+			}
 
 			episode := getSource(link, anime)
 			episode.Title = title
@@ -134,6 +166,12 @@ func getSource(uri string, anime *models.Anime) *models.Episode {
 		})
 
 		episode.Source = source
+	})
+
+	c.OnHTML("#gotVVVVID", func(e *colly.HTMLElement) {
+		if episode.Source == "" {
+			episode.Source = e.Attr("href")
+		}
 	})
 
 	if uri != "" {

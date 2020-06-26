@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
@@ -21,7 +22,6 @@ type MALSearch struct {
 	scraper *Scraper
 	letter  string
 	page    int
-	//uri     string
 }
 
 // ALQuery is the data definition of the AL query
@@ -32,12 +32,17 @@ type ALQuery struct {
 
 // ALResponse is the data definition of the AL query response
 type ALResponse struct {
-	Data ALResponseData `json:"data"`
+	Data ALResponsePage `json:"data"`
+}
+
+// ALResponsePage is the nested data definition of the AL query response
+type ALResponsePage struct {
+	Page ALResponseData `json:"Page"`
 }
 
 // ALResponseData is the nested data definition of the AL query response
 type ALResponseData struct {
-	Media ALResponseMedia `json:"Media"`
+	Media []ALResponseMedia `json:"media"`
 }
 
 // ALResponseMedia is the nested data definition of the AL query response
@@ -79,7 +84,10 @@ func (m *MALSearch) Start() {
 						}
 					}
 
-					m.scraper.UpdateProcess(anime.ID)
+					if anime.ID != 0 {
+						m.scraper.UpdateProcess(anime.ID)
+					}
+
 					time.Sleep(200 * time.Millisecond)
 				})
 			})
@@ -102,6 +110,9 @@ func (m *MALSearch) scrapeElement(uri string) *models.Anime {
 	anime := &models.Anime{}
 	c := colly.NewCollector()
 	SetupCollectorProxy(c)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
 
 	c.OnHTML("#contentWrapper .h1-title span", func(e *colly.HTMLElement) {
 		anime.MainTitle = e.Text
@@ -140,9 +151,15 @@ func (m *MALSearch) scrapeElement(uri string) *models.Anime {
 		return
 	})
 
+	c.OnScraped(func(_ *colly.Response) {
+		wg.Done()
+	})
+
 	anime.MyAnimeListID, _ = strconv.Atoi(strings.Split(uri, "/")[4])
 
 	c.Visit(uri)
+
+	wg.Wait()
 
 	m.getAnilistData(anime)
 
@@ -152,8 +169,10 @@ func (m *MALSearch) scrapeElement(uri string) *models.Anime {
 func (m *MALSearch) getAnilistData(a *models.Anime) {
 	al := &ALQuery{
 		Query: `query($idMal: Int) { 
-			Media(idMal: $idMal) { 
-				id
+			Page(page: 1, perPage: 50) {
+				media(idMal: $idMal, type: ANIME) { 
+					id
+				}
 			}
 		}`,
 	}
@@ -179,7 +198,13 @@ func (m *MALSearch) getAnilistData(a *models.Anime) {
 	result := &ALResponse{}
 	json.Unmarshal(body, &result)
 
-	a.AniListID = result.Data.Media.ID
+	for _, media := range result.Data.Page.Media {
+		if a.AniListID == 0 || media.ID > a.AniListID {
+			a.AniListID = media.ID
+		} else {
+			continue
+		}
+	}
 
 	resp.Body.Close()
 }
