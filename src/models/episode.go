@@ -3,6 +3,7 @@ package models
 import (
 	"aniapi-go/database"
 	"aniapi-go/utils"
+	"fmt"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -54,7 +55,17 @@ func (e *Episode) IsValid() bool {
 		ref.Title = e.Title
 		*e = *ref
 	} else {
-		// TODO: AGGIUNGERE NOTIFICA NUOVO EPISODIO SU SITO SPECIFICO
+		a, err := GetAnime(e.AnimeID)
+
+		if err == nil {
+			n := &Notification{
+				AnimeID:   a.ID,
+				AnilistID: a.AniListID,
+				Message:   fmt.Sprintf("Episode <b>%d</b> released on <b>%s</b>", e.Number, e.From),
+				Type:      TypeEpisodeChange,
+			}
+			n.Save()
+		}
 	}
 
 	return true
@@ -84,11 +95,15 @@ func GetEpisode(animeID int, number int, region string) (*Episode, error) {
 }
 
 // FindEpisodes returns a paginated list of filtered episodes
-func FindEpisodes(animeID int, from string, region string, page *utils.PageInfo, sort string, desc bool) ([]Episode, error) {
+func FindEpisodes(animeID int, number int, from string, region string, page *utils.PageInfo, sort string, desc bool) ([]Episode, error) {
 	episodes := make([]Episode, page.Size)
 
 	filter := bson.M{
 		"anime_id": animeID,
+	}
+
+	if number != 0 {
+		filter["number"] = number
 	}
 
 	if from != "" {

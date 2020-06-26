@@ -72,13 +72,14 @@ func getMoreEpisode(w *engine.Response, r *engine.Request) {
 		return
 	}
 
+	number, _ := strconv.Atoi(r.Query["number"])
 	from, _ := url.QueryUnescape(r.Query["from"])
 	region, _ := url.QueryUnescape(r.Query["region"])
 
 	sort, _ := url.QueryUnescape(r.Query["sort"])
 	_, desc := r.Query["desc"]
 
-	episodes, err := models.FindEpisodes(animeID, from, region, page, sort, desc)
+	episodes, err := models.FindEpisodes(animeID, number, from, region, page, sort, desc)
 
 	if err != nil {
 		w.WriteJSONError(http.StatusInternalServerError, err.Error())
