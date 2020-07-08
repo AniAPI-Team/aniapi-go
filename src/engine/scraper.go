@@ -22,10 +22,15 @@ type ScraperModule interface {
 
 // Scraper is the data definition of the scraper engine
 type Scraper struct {
-	current int
 	Modules []ScraperModule
 	running bool
 	start   time.Time
+}
+
+// ScraperInfo is the data definition of the scraper process status
+type ScraperInfo struct {
+	Anime     *models.Anime `json:"anime"`
+	StartTime time.Time     `json:"start_time"`
 }
 
 var proxies []*url.URL
@@ -37,28 +42,30 @@ func (s *Scraper) Start() {
 
 	s.running = true
 	s.start = time.Now()
-	s.UpdateProcess(0)
 
 	mal := NewMALSearch(s)
 	mal.Start()
 
 	s.running = false
-	s.UpdateProcess(-1)
+	s.UpdateProcess(nil)
 
 	time.Sleep(6 * time.Hour)
 	s.Start()
 }
 
-// UpdateProcess updates scraper process info on MongoDB
-func (s *Scraper) UpdateProcess(id int) {
-	s.current = id
-
-	ss := &models.Scraper{
-		AnimeID:   s.current,
+// UpdateProcess updates scraper process
+func (s *Scraper) UpdateProcess(anime *models.Anime) {
+	ss := &ScraperInfo{
+		Anime:     anime,
 		StartTime: s.start,
 	}
 
-	ss.Save()
+	msg := &SocketMessage{
+		Channel: "scraper",
+		Data:    ss,
+	}
+
+	go SocketWriteMessage(msg)
 }
 
 func (s *Scraper) loadProxies() {
@@ -118,7 +125,6 @@ func SetupCollectorProxy(c *colly.Collector) {
 // NewScraper creates a new scraper engine
 func NewScraper() *Scraper {
 	return &Scraper{
-		current: 0,
 		running: false,
 		Modules: []ScraperModule{
 			modules.NewDreamsub(),

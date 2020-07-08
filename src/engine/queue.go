@@ -10,6 +10,7 @@ type QueueItem struct {
 	Anime         *models.Anime `json:"anime"`
 	InsertionDate time.Time     `json:"insertion_date"`
 	Running       bool          `json:"running"`
+	Completed     bool          `json:"completed"`
 }
 
 var scraper *Scraper = NewScraper()
@@ -26,11 +27,25 @@ func StartQueue() {
 			if item != nil {
 				item.Running = true
 
+				msg := &SocketMessage{
+					Channel: "queue",
+					Data:    item,
+				}
+
+				go SocketWriteMessage(msg)
+
 				for _, module := range scraper.Modules {
 					module.Start(item.Anime)
 				}
 
-				item.Running = false
+				item.Completed = true
+
+				msg = &SocketMessage{
+					Channel: "queue",
+					Data:    item,
+				}
+
+				go SocketWriteMessage(msg)
 			}
 
 			QueueItems = QueueItems[1:]
@@ -43,6 +58,13 @@ func StartQueue() {
 // InsertItemInQueue inserts a new item at the bottom of the queue
 func InsertItemInQueue(item *QueueItem) {
 	QueueItems = append(QueueItems, item)
+
+	msg := &SocketMessage{
+		Channel: "queue",
+		Data:    item,
+	}
+
+	go SocketWriteMessage(msg)
 }
 
 // NewQueueItem returns a new queue's item
@@ -57,5 +79,6 @@ func NewQueueItem(animeID int) *QueueItem {
 		Anime:         anime,
 		InsertionDate: time.Now(),
 		Running:       false,
+		Completed:     false,
 	}
 }

@@ -1,10 +1,13 @@
 package engine
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"regexp"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 // FHandler is a function type for handler functions
@@ -16,10 +19,27 @@ type Route struct {
 	handler FHandler
 }
 
+// SocketMessage is the standard socket message type
+type SocketMessage struct {
+	Channel string      `json:"channel"`
+	Data    interface{} `json:"data"`
+}
+
 // Server is a custom router
 type Server struct {
 	routes       []Route
 	DefaultRoute FHandler
+}
+
+var socketConnections []*websocket.Conn
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	CheckOrigin:     checkOrigin,
+}
+
+func checkOrigin(r *http.Request) bool {
+	return true
 }
 
 func defaultRouteHandler(w *Response, r *Request) {
@@ -84,6 +104,58 @@ func (s *Server) Handle(pattern string, handler FHandler) {
 	route := Route{pattern: re, handler: loggingWrapperHandle(handler)}
 
 	s.routes = append(s.routes, route)
+}
+
+// OnSocketConnStart adds a new socket connection to the alive connections pool
+func OnSocketConnStart(w *Response, r *Request) {
+	conn, err := upgrader.Upgrade(w.Writer, r.Data, nil)
+
+	if err != nil {
+		log.Printf("SOCKET ERROR: %s", err.Error())
+		return
+	}
+
+	duplicate := false
+
+	for _, c := range socketConnections {
+		if conn.RemoteAddr().String() == c.RemoteAddr().String() {
+			duplicate = true
+		}
+	}
+
+	if duplicate == false {
+		socketConnections = append(socketConnections, conn)
+	}
+}
+
+// SocketWriteMessage writes a message to all alive connections
+func SocketWriteMessage(msg *SocketMessage) {
+	var toDelete []int
+
+	json, err := json.Marshal(msg)
+
+	if err != nil {
+		log.Printf("SOCKET JSON ERROR: %s", err.Error())
+		return
+	}
+
+	for i, s := range socketConnections {
+		err := s.WriteMessage(1, []byte(json))
+
+		if err != nil {
+			log.Printf("SOCKET WRITE ERROR: %s", err.Error())
+			toDelete = append(toDelete, i)
+		}
+	}
+
+	for j := len(toDelete) - 1; j >= 0; j-- {
+		i := toDelete[j]
+
+		length := len(socketConnections) - 1
+		socketConnections[i] = socketConnections[length]
+		socketConnections[length] = nil
+		socketConnections = socketConnections[:length]
+	}
 }
 
 // NewServer creates a new application router

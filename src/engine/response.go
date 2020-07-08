@@ -62,6 +62,7 @@ func (res *Response) WriteJSONError(status int, body string) {
 	res.Write(status, "{ \"error\": \""+body+"\"}")
 }
 
+// WriteHTML is used to setup an HTML file response content
 func (res *Response) WriteHTML(filePath string) {
 	html, err := ioutil.ReadFile(filePath)
 
@@ -71,15 +72,4 @@ func (res *Response) WriteHTML(filePath string) {
 	}
 
 	res.Write(200, string(html))
-}
-
-func (res *Response) RenderHTML(filePath string) *Renderer {
-	html, err := ioutil.ReadFile(filePath)
-
-	if err != nil {
-		res.NotFound()
-		return nil
-	}
-
-	return NewRenderer(string(html), res)
 }

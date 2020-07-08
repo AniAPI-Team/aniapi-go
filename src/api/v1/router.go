@@ -13,10 +13,8 @@ func Router(controller string, w *engine.Response, r *engine.Request) {
 		MatchingHandler(w, r)
 	case "notification":
 		NotificationHandler(w, r)
-	case "queue":
-		QueueHandler(w, r)
-	case "scraper":
-		ScraperHandler(w, r)
+	case "socket":
+		SocketHandler(w, r)
 	default:
 		w.NotFound()
 	}
