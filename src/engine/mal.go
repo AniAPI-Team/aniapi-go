@@ -85,10 +85,10 @@ func (m *MALSearch) Start() {
 					}
 
 					if anime.ID != 0 {
-						m.scraper.UpdateProcess(anime.ID)
+						m.scraper.UpdateProcess(anime)
 					}
 
-					time.Sleep(200 * time.Millisecond)
+					time.Sleep(500 * time.Millisecond)
 				})
 			})
 
@@ -101,7 +101,7 @@ func (m *MALSearch) Start() {
 			c.Visit(uri)
 
 			m.page++
-			time.Sleep(60 * time.Second)
+			time.Sleep(120 * time.Second)
 		}
 	}
 }
