@@ -93,6 +93,7 @@ func (m *MALSearch) Start() {
 			})
 
 			c.OnError(func(_ *colly.Response, err error) {
+				log.Printf(err.Error())
 				s = true
 			})
 
