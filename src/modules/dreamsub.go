@@ -55,7 +55,7 @@ func findMatch(titles []string, id int) (string, int) {
 
 				desc, _ := el.DOM.Find(".desc").Html()
 				part := strings.Split(desc, "<br/>")[1]
-				eps, _ := strconv.Atoi(strings.Replace(strings.TrimSpace(strings.Replace(part, "<b>Episodi</b>:", "", 1)), "+", "", 1))
+				eps, _ := strconv.Atoi(strings.Replace(strings.TrimSpace(strings.Replace(strings.Split(part, ",")[0], "<b>Episodi</b>:", "", 1)), "+", "", 1))
 
 				if score < best && score != -1 && score <= 1 {
 					best = score
