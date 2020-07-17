@@ -23,7 +23,14 @@ func (d Dreamsub) Start(a *models.Anime) {
 
 	if match != "" {
 		if count == 1 {
-			episode := getSource(match, a)
+			episode := &models.Episode{
+				AnimeID: a.ID,
+				From:    "dreamsub",
+				Number:  1,
+				Region:  models.RegionIT,
+				Title:   "",
+			}
+			getSource(match, a, episode)
 			episode.Save()
 		} else {
 			getEpisodes(match, a)
@@ -129,7 +136,14 @@ func getEpisodes(uri string, anime *models.Anime) {
 				return true
 			}
 
-			episode := getSource(link, anime)
+			episode := &models.Episode{
+				AnimeID: anime.ID,
+				From:    "dreamsub",
+				Number:  1,
+				Region:  models.RegionIT,
+				Title:   "",
+			}
+			getSource(link, anime, episode)
 			episode.Title = title
 			episode.Number = i + 1
 
@@ -142,14 +156,7 @@ func getEpisodes(uri string, anime *models.Anime) {
 	c.Visit("https://dreamsub.stream" + uri)
 }
 
-func getSource(uri string, anime *models.Anime) *models.Episode {
-	episode := models.Episode{
-		AnimeID: anime.ID,
-		From:    "dreamsub",
-		Number:  1,
-		Region:  models.RegionIT,
-		Title:   "",
-	}
+func getSource(uri string, anime *models.Anime, episode *models.Episode) {
 	c := colly.NewCollector()
 
 	c.OnHTML("#main-content.onlyDesktop .goblock-content div", func(e *colly.HTMLElement) {
@@ -168,17 +175,25 @@ func getSource(uri string, anime *models.Anime) *models.Episode {
 		episode.Source = source
 	})
 
-	c.OnHTML("#gotVVVVID", func(e *colly.HTMLElement) {
+	c.OnHTML("#iFrameVideoSub", func(e *colly.HTMLElement) {
 		if episode.Source == "" {
-			episode.Source = e.Attr("href")
+			src := e.Attr("src")
+
+			if src != "" {
+				c.Visit("https://dreamsub.stream" + src)
+			}
 		}
 	})
 
-	if uri != "" {
-		c.Visit("https://dreamsub.stream" + uri)
+	c.OnHTML("#gotVVVVID", func(e *colly.HTMLElement) {
+		episode.Source = e.Attr("href")
+	})
+
+	if uri == "" {
+		return
 	}
 
-	return &episode
+	c.Visit("https://dreamsub.stream" + uri)
 }
 
 // NewDreamsub creates a new dreamsub module
