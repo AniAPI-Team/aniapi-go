@@ -132,7 +132,7 @@ func getEpisodes(uri string, anime *models.Anime) {
 			}
 			link, _ := el.DOM.Find(".sli-name a").Attr("href")
 
-			if title == "TBA" {
+			if title == "TBA" && link == "" {
 				return true
 			}
 
