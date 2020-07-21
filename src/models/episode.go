@@ -17,7 +17,7 @@ const (
 	// RegionIT refer to italian region
 	RegionIT EpisodeRegion = "it"
 	// RegionEN refer to english region
-	RegionEN EpisodeRegion = "en"
+	RegionEN EpisodeRegion = "gb"
 )
 
 // Episode is the MongoDB model of an episode document

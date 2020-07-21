@@ -18,8 +18,7 @@ type Dreamsub struct{}
 
 // Start the scraping flow
 func (d Dreamsub) Start(a *models.Anime) {
-	titles := append([]string{a.MainTitle}, a.AlternativesTitle...)
-	match, count := findMatch(titles, a.ID)
+	match, count := d.findMatch(a)
 
 	if match != "" {
 		if count == 1 {
@@ -30,15 +29,16 @@ func (d Dreamsub) Start(a *models.Anime) {
 				Region:  models.RegionIT,
 				Title:   "",
 			}
-			getSource(match, a, episode)
+			d.getSource(match, a, episode)
 			episode.Save()
 		} else {
-			getEpisodes(match, a)
+			d.getEpisodes(match, a)
 		}
 	}
 }
 
-func findMatch(titles []string, id int) (string, int) {
+func (d Dreamsub) findMatch(a *models.Anime) (string, int) {
+	titles := append([]string{a.MainTitle}, a.AlternativesTitle...)
 	match := ""
 	episodes := 0
 	best := 99
@@ -76,7 +76,7 @@ func findMatch(titles []string, id int) (string, int) {
 				if (score > 1 && len(source) > 2) || (len(source) <= 2 && score > 1 && score <= 10) {
 					url, _ := el.DOM.Find(".showStreaming a").Eq(0).Attr("href")
 					otherMatches = append(otherMatches, &models.Matching{
-						AnimeID:  id,
+						AnimeID:  a.ID,
 						Episodes: eps,
 						From:     "dreamsub",
 						Ratio:    r,
@@ -97,15 +97,15 @@ func findMatch(titles []string, id int) (string, int) {
 	}
 
 	if match != "" {
-		log.Printf("MATCHED ON %s WITH %d SCORE (%f RATIO) AND %d EPISODES", match, best, ratio, episodes)
+		log.Printf("[DREAMSUB] MATCHED ON %s WITH %d SCORE (%f RATIO) AND %d EPISODES", match, best, ratio, episodes)
 	} else {
-		matches, err := models.FindMatchings(id, "dreamsub", "votes", true)
+		matches, err := models.FindMatchings(a.ID, "dreamsub", "votes", true)
 
 		if err == nil && len(matches) > 0 {
 			if matches[0].Votes > 0 {
 				match = "/" + strings.Join(strings.Split(matches[0].URL, "/")[3:5], "/")
 				episodes = matches[0].Episodes
-				log.Printf("VOTE MATCHED ON %s WITH %d VOTES AND %d EPISODES", match, matches[0].Votes, matches[0].Episodes)
+				log.Printf("[DREAMSUB] VOTE MATCHED ON %s WITH %d VOTES AND %d EPISODES", match, matches[0].Votes, matches[0].Episodes)
 			}
 		}
 	}
@@ -113,7 +113,7 @@ func findMatch(titles []string, id int) (string, int) {
 	return match, episodes
 }
 
-func getEpisodes(uri string, anime *models.Anime) {
+func (d Dreamsub) getEpisodes(uri string, anime *models.Anime) {
 	c := colly.NewCollector()
 
 	c.OnHTML("#episodes-sv", func(e *colly.HTMLElement) {
@@ -143,7 +143,7 @@ func getEpisodes(uri string, anime *models.Anime) {
 				Region:  models.RegionIT,
 				Title:   "",
 			}
-			getSource(link, anime, episode)
+			d.getSource(link, anime, episode)
 			episode.Title = title
 			episode.Number = i + 1
 
@@ -156,7 +156,7 @@ func getEpisodes(uri string, anime *models.Anime) {
 	c.Visit("https://dreamsub.stream" + uri)
 }
 
-func getSource(uri string, anime *models.Anime, episode *models.Episode) {
+func (d Dreamsub) getSource(uri string, anime *models.Anime, episode *models.Episode) {
 	c := colly.NewCollector()
 
 	c.OnHTML("#main-content.onlyDesktop .goblock-content div", func(e *colly.HTMLElement) {

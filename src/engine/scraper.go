@@ -128,6 +128,7 @@ func NewScraper() *Scraper {
 		running: false,
 		Modules: []ScraperModule{
 			modules.NewDreamsub(),
+			modules.NewGogoanime(),
 		},
 	}
 }
