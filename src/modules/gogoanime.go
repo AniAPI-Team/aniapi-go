@@ -161,9 +161,9 @@ func (g Gogoanime) getEpisodes(id string, anime *models.Anime) {
 				From:    "gogoanime",
 				Number:  number,
 				Region:  models.RegionEN,
+				Source:  response.Target,
 				Title:   response.Name,
 			}
-			g.getSource(response.Target, anime, episode)
 
 			if episode.Source != "" {
 				episode.Save()
@@ -171,20 +171,6 @@ func (g Gogoanime) getEpisodes(id string, anime *models.Anime) {
 			}
 		}
 	}
-}
-
-func (g Gogoanime) getSource(uri string, anime *models.Anime, episode *models.Episode) {
-	c := colly.NewCollector()
-
-	c.OnHTML("#videolink", func(e *colly.HTMLElement) {
-		episode.Source = e.DOM.Text() + "&stream=1"
-	})
-
-	if uri == "" {
-		return
-	}
-
-	c.Visit(uri)
 }
 
 // NewGogoanime creates a new gogoanime module
