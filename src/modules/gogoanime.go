@@ -69,10 +69,10 @@ func (g Gogoanime) findMatch(a *models.Anime) string {
 					otherMatches = append(otherMatches, &models.Matching{
 						AnimeID:  a.ID,
 						Episodes: 0,
-						From:     "dreamsub",
+						From:     "gogoanime",
 						Ratio:    r,
 						Title:    target,
-						URL:      "https://dreamsub.stream" + url,
+						URL:      "https://gogoanime.pro" + url,
 					})
 				}
 			})
@@ -90,7 +90,7 @@ func (g Gogoanime) findMatch(a *models.Anime) string {
 	if match != "" {
 		log.Printf("[GOGOANIME] MATCHED ON %s WITH %d SCORE (%f RATIO)", match, best, ratio)
 	} else {
-		matches, err := models.FindMatchings(a.ID, "dreamsub", "votes", true)
+		matches, err := models.FindMatchings(a.ID, "gogoanime", "votes", true)
 
 		if err == nil && len(matches) > 0 {
 			if matches[0].Votes > 0 {
