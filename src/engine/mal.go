@@ -80,7 +80,7 @@ func (m *MALSearch) Start() {
 						}
 					}
 
-					time.Sleep(500 * time.Millisecond)
+					time.Sleep(2000 * time.Millisecond)
 				})
 			})
 
