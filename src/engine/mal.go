@@ -59,30 +59,20 @@ func (m *MALSearch) Start() {
 		m.page = 0
 
 		for s == false {
-			c := colly.NewCollector(
-				colly.Async(true),
-			)
+			c := colly.NewCollector()
 			SetupCollectorProxy(c)
 
 			uri := fmt.Sprintf("https://myanimelist.net/anime.php?letter=%s&show=%d", m.letter, m.page*50)
 
 			c.OnHTML(".js-categories-seasonal.js-block-list.list tbody", func(e *colly.HTMLElement) {
 				e.ForEach("tr td .picSurround a", func(_ int, el *colly.HTMLElement) {
-					start := time.Now()
-
 					anime := m.scrapeElement(el.Attr("href"))
-
-					elapsed := time.Since(start)
-
-					m.scraper.logMessage("INFO", fmt.Sprintf("Scraped %s [%d][%d] in %s", anime.MainTitle, anime.MyAnimeListID, anime.AniListID, elapsed))
 
 					if anime.IsValid() {
 						anime.Save()
 
-						cl := colly.NewCollector()
-						SetupCollectorProxy(cl)
 						for _, module := range m.scraper.Modules {
-							module.Start(anime, cl)
+							module.Start(anime, c)
 						}
 					}
 
@@ -90,22 +80,18 @@ func (m *MALSearch) Start() {
 						m.scraper.UpdateProcess(anime)
 					}
 
-					time.Sleep(500 * time.Millisecond)
+					//time.Sleep(50 * time.Millisecond)
 				})
 			})
 
 			c.OnError(func(_ *colly.Response, err error) {
-				//log.Printf(err.Error())
-				m.scraper.logMessage("ERROR", err.Error())
+				log.Printf("ERROR: %s", err.Error())
 				s = true
 			})
-
-			log.Printf("\n\nScraping letter \"%s\" and page %d\n\n", m.letter, m.page+1)
 
 			c.Visit(uri)
 
 			m.page++
-			time.Sleep(120 * time.Second)
 		}
 	}
 }
@@ -152,7 +138,7 @@ func (m *MALSearch) scrapeElement(uri string) *models.Anime {
 	})
 
 	c.OnError(func(_ *colly.Response, err error) {
-		m.scraper.logMessage("ERROR", err.Error())
+		log.Printf("ERROR: %s", err.Error())
 		return
 	})
 
