@@ -74,7 +74,7 @@ func (m *MALSearch) Start() {
 
 					elapsed := time.Since(start)
 
-					log.Printf("Scraped %s [%d][%d] in %s", anime.MainTitle, anime.MyAnimeListID, anime.AniListID, elapsed)
+					m.scraper.logMessage("INFO", fmt.Sprintf("Scraped %s [%d][%d] in %s", anime.MainTitle, anime.MyAnimeListID, anime.AniListID, elapsed))
 
 					if anime.IsValid() {
 						anime.Save()
@@ -93,7 +93,8 @@ func (m *MALSearch) Start() {
 			})
 
 			c.OnError(func(_ *colly.Response, err error) {
-				log.Printf(err.Error())
+				//log.Printf(err.Error())
+				m.scraper.logMessage("ERROR", err.Error())
 				s = true
 			})
 
@@ -149,6 +150,7 @@ func (m *MALSearch) scrapeElement(uri string) *models.Anime {
 	})
 
 	c.OnError(func(_ *colly.Response, err error) {
+		m.scraper.logMessage("ERROR", err.Error())
 		return
 	})
 

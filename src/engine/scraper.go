@@ -4,6 +4,7 @@ import (
 	"aniapi-go/models"
 	"aniapi-go/modules"
 	"context"
+	"log"
 	"math"
 	"net/http"
 	"net/url"
@@ -92,6 +93,25 @@ func (s *Scraper) loadProxies() {
 			proxiesUses = append(proxiesUses, 0)
 		}
 	}
+}
+
+func (s *Scraper) logMessage(prefix string, msg string) {
+	layout := "02_01_2006"
+	now := time.Now()
+	name := "scraper_" + now.Format(layout) + ".log"
+
+	err := os.Mkdir("../logs", 0755)
+
+	f, err := os.OpenFile("../logs/"+name, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+
+	if err != nil {
+		log.Print(err)
+	}
+
+	defer f.Close()
+
+	logger := log.New(f, prefix+": ", log.LstdFlags)
+	logger.Println(msg)
 }
 
 func getBestProxy(pr *http.Request) (*url.URL, error) {

@@ -48,8 +48,6 @@ func Router(w *engine.Response, r *engine.Request) {
 		default:
 			w.NotFound()
 		}
-		//} else if parts[1] == "auth" {
-		//	AuthHandler(w, r)
 	} else {
 		w.NotFound()
 	}

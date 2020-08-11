@@ -15,6 +15,8 @@ func Router(controller string, w *engine.Response, r *engine.Request) {
 		NotificationHandler(w, r)
 	case "socket":
 		SocketHandler(w, r)
+	case "proxy":
+		ProxyHandler(w, r)
 	default:
 		w.NotFound()
 	}
