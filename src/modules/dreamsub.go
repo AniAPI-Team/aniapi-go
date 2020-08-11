@@ -17,8 +17,8 @@ import (
 type Dreamsub struct{}
 
 // Start the scraping flow
-func (d Dreamsub) Start(a *models.Anime) {
-	match, count := d.findMatch(a)
+func (d Dreamsub) Start(a *models.Anime, c *colly.Collector) {
+	match, count := d.findMatch(a, c)
 
 	if match != "" {
 		if count == 1 {
@@ -29,15 +29,15 @@ func (d Dreamsub) Start(a *models.Anime) {
 				Region:  models.RegionIT,
 				Title:   "",
 			}
-			d.getSource(match, a, episode)
+			d.getSource(match, a, episode, c)
 			episode.Save()
 		} else {
-			d.getEpisodes(match, a)
+			d.getEpisodes(match, a, c)
 		}
 	}
 }
 
-func (d Dreamsub) findMatch(a *models.Anime) (string, int) {
+func (d Dreamsub) findMatch(a *models.Anime, c *colly.Collector) (string, int) {
 	titles := append([]string{a.MainTitle}, a.AlternativesTitle...)
 	match := ""
 	episodes := 0
@@ -48,7 +48,7 @@ func (d Dreamsub) findMatch(a *models.Anime) (string, int) {
 
 	for _, title := range titles {
 		query := "https://dreamsub.stream/search/?q=" + url.QueryEscape(title)
-		c := colly.NewCollector()
+		//c := colly.NewCollector()
 
 		c.OnHTML("#main-content .goblock", func(e *colly.HTMLElement) {
 			e.ForEach(".tvBlock", func(_ int, el *colly.HTMLElement) {
@@ -119,8 +119,8 @@ func (d Dreamsub) findMatch(a *models.Anime) (string, int) {
 	return match, episodes
 }
 
-func (d Dreamsub) getEpisodes(uri string, anime *models.Anime) {
-	c := colly.NewCollector()
+func (d Dreamsub) getEpisodes(uri string, anime *models.Anime, c *colly.Collector) {
+	//c := colly.NewCollector()
 
 	c.OnHTML("#episodes-sv", func(e *colly.HTMLElement) {
 		e.ForEachWithBreak(".ep-item", func(i int, el *colly.HTMLElement) bool {
@@ -149,7 +149,7 @@ func (d Dreamsub) getEpisodes(uri string, anime *models.Anime) {
 				Region:  models.RegionIT,
 				Title:   "",
 			}
-			d.getSource(link, anime, episode)
+			d.getSource(link, anime, episode, c)
 			episode.Title = title
 			episode.Number = i + 1
 
@@ -162,8 +162,8 @@ func (d Dreamsub) getEpisodes(uri string, anime *models.Anime) {
 	c.Visit("https://dreamsub.stream" + uri)
 }
 
-func (d Dreamsub) getSource(uri string, anime *models.Anime, episode *models.Episode) {
-	c := colly.NewCollector()
+func (d Dreamsub) getSource(uri string, anime *models.Anime, episode *models.Episode, c *colly.Collector) {
+	//c := colly.NewCollector()
 
 	c.OnHTML("#main-content.onlyDesktop .goblock-content div", func(e *colly.HTMLElement) {
 		source := ""

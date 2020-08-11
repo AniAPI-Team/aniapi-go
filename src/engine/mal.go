@@ -79,8 +79,10 @@ func (m *MALSearch) Start() {
 					if anime.IsValid() {
 						anime.Save()
 
+						cl := colly.NewCollector()
+						SetupCollectorProxy(cl)
 						for _, module := range m.scraper.Modules {
-							module.Start(anime)
+							module.Start(anime, cl)
 						}
 					}
 

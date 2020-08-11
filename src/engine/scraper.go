@@ -18,7 +18,7 @@ import (
 
 // ScraperModule is the basic interface for a module
 type ScraperModule interface {
-	Start(a *models.Anime)
+	Start(a *models.Anime, c *colly.Collector)
 }
 
 // Scraper is the data definition of the scraper engine

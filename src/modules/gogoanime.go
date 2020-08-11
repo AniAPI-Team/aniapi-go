@@ -27,15 +27,15 @@ type GogoanimeAjax struct {
 }
 
 // Start the scraping flow
-func (g Gogoanime) Start(a *models.Anime) {
-	match := g.findMatch(a)
+func (g Gogoanime) Start(a *models.Anime, c *colly.Collector) {
+	match := g.findMatch(a, c)
 
 	if match != "" {
 		g.getEpisodes(match[len(match)-4:], a)
 	}
 }
 
-func (g Gogoanime) findMatch(a *models.Anime) string {
+func (g Gogoanime) findMatch(a *models.Anime, c *colly.Collector) string {
 	titles := append([]string{a.MainTitle}, a.AlternativesTitle...)
 	match := ""
 	best := 99
@@ -45,7 +45,7 @@ func (g Gogoanime) findMatch(a *models.Anime) string {
 
 	for _, title := range titles {
 		query := "https://gogoanime.pro/search/?language%5B%5D=subbed&keyword=" + url.QueryEscape(title)
-		c := colly.NewCollector()
+		//c := colly.NewCollector()
 
 		c.OnHTML("#wrapper .last_episodes .items", func(e *colly.HTMLElement) {
 			e.ForEach("li", func(_ int, el *colly.HTMLElement) {
