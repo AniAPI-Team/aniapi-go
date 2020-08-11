@@ -69,18 +69,18 @@ func (m *MALSearch) Start() {
 					anime := m.scrapeElement(el.Attr("href"))
 
 					if anime.IsValid() {
+						if anime.ID != 0 {
+							m.scraper.UpdateProcess(anime)
+						}
+
 						anime.Save()
 
 						for _, module := range m.scraper.Modules {
-							module.Start(anime, c)
+							go module.Start(anime, c)
 						}
 					}
 
-					if anime.ID != 0 {
-						m.scraper.UpdateProcess(anime)
-					}
-
-					//time.Sleep(50 * time.Millisecond)
+					time.Sleep(500 * time.Millisecond)
 				})
 			})
 
