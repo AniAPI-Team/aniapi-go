@@ -87,6 +87,12 @@ func (d Dreamsub) findMatch(a *models.Anime) (string, int) {
 			})
 		})
 
+		c.OnError(func(_ *colly.Response, err error) {
+			//m.scraper.logMessage("ERROR", err.Error())
+			log.Printf("ERROR: %s", err.Error())
+			return
+		})
+
 		c.Visit(query)
 
 		if match == "" {
