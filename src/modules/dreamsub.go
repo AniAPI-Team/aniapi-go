@@ -48,7 +48,6 @@ func (d Dreamsub) findMatch(a *models.Anime, c *colly.Collector) (string, int) {
 
 	for _, title := range titles {
 		query := "https://dreamsub.stream/search/?q=" + url.QueryEscape(title)
-		//c := colly.NewCollector()
 
 		c.OnHTML("#main-content .goblock", func(e *colly.HTMLElement) {
 			e.ForEach(".tvBlock", func(_ int, el *colly.HTMLElement) {
@@ -88,7 +87,6 @@ func (d Dreamsub) findMatch(a *models.Anime, c *colly.Collector) (string, int) {
 		})
 
 		c.OnError(func(_ *colly.Response, err error) {
-			//m.scraper.logMessage("ERROR", err.Error())
 			log.Printf("ERROR: %s", err.Error())
 			return
 		})
@@ -103,7 +101,7 @@ func (d Dreamsub) findMatch(a *models.Anime, c *colly.Collector) (string, int) {
 	}
 
 	if match != "" {
-		log.Printf("[DREAMSUB] MATCHED ON %s WITH %d SCORE (%f RATIO) AND %d EPISODES", match, best, ratio, episodes)
+		log.Printf("[DREAMSUB] MATCHED %s ON %s WITH %f RATIO", a.MainTitle, match, ratio)
 	} else {
 		matches, err := models.FindMatchings(a.ID, "dreamsub", "votes", true)
 
@@ -111,7 +109,7 @@ func (d Dreamsub) findMatch(a *models.Anime, c *colly.Collector) (string, int) {
 			if matches[0].Votes > 0 {
 				match = "/" + strings.Join(strings.Split(matches[0].URL, "/")[3:5], "/")
 				episodes = matches[0].Episodes
-				log.Printf("[DREAMSUB] VOTE MATCHED ON %s WITH %d VOTES AND %d EPISODES", match, matches[0].Votes, matches[0].Episodes)
+				log.Printf("[DREAMSUB] VOTE MATCHED %s ON %s WITH %d VOTES", a.MainTitle, match, matches[0].Votes)
 			}
 		}
 	}

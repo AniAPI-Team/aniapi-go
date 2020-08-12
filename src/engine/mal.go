@@ -80,7 +80,7 @@ func (m *MALSearch) Start() {
 						}
 					}
 
-					time.Sleep(2000 * time.Millisecond)
+					//time.Sleep(500 * time.Millisecond)
 				})
 			})
 
@@ -91,6 +91,8 @@ func (m *MALSearch) Start() {
 
 			c.Visit(uri)
 
+			log.Print("PAGE COMPLETED, WAITING 120 SECONDS FOR NEXT")
+			time.Sleep(120 * time.Second)
 			m.page++
 		}
 	}

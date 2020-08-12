@@ -88,14 +88,14 @@ func (g Gogoanime) findMatch(a *models.Anime, c *colly.Collector) string {
 	}
 
 	if match != "" {
-		log.Printf("[GOGOANIME] MATCHED ON %s WITH %d SCORE (%f RATIO)", match, best, ratio)
+		log.Printf("[GOGOANIME] MATCHED %s ON %s WITH %f RATIO", a.MainTitle, match, ratio)
 	} else {
 		matches, err := models.FindMatchings(a.ID, "gogoanime", "votes", true)
 
 		if err == nil && len(matches) > 0 {
 			if matches[0].Votes > 0 {
 				match = "/" + strings.Join(strings.Split(matches[0].URL, "/")[3:5], "/")
-				log.Printf("[GOGOANIME] VOTE MATCHED ON %s WITH %d VOTES AND %d EPISODES", match, matches[0].Votes, matches[0].Episodes)
+				log.Printf("[GOGOANIME] VOTE MATCHED %s ON %s WITH %d VOTES", a.MainTitle, match, matches[0].Votes)
 			}
 		}
 	}

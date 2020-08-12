@@ -4,10 +4,12 @@ import (
 	"aniapi-go/models"
 	"aniapi-go/modules"
 	"context"
+	"log"
 	"math"
 	"net/http"
 	"net/url"
 	"os"
+	"runtime"
 	"strconv"
 	"time"
 
@@ -42,6 +44,7 @@ func (s *Scraper) Start() {
 
 	s.running = true
 	s.start = time.Now()
+	go printMemoryUsed(s)
 
 	mal := NewMALSearch(s)
 	mal.Start()
@@ -91,6 +94,16 @@ func (s *Scraper) loadProxies() {
 
 			proxiesUses = append(proxiesUses, 0)
 		}
+	}
+}
+
+func printMemoryUsed(s *Scraper) {
+	for s.running == true {
+		var m runtime.MemStats
+		runtime.ReadMemStats(&m)
+
+		log.Printf("MEMORY USAGE OF %v MB", (m.Alloc / 1024 / 1024))
+		time.Sleep(30 * time.Second)
 	}
 }
 
