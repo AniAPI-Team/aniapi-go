@@ -79,7 +79,7 @@ func (m *MALSearch) Start() {
 							for _, module := range m.scraper.Modules {
 								cl := colly.NewCollector()
 								SetupCollectorProxy(cl)
-								go module.Start(anime, cl)
+								module.Start(anime, cl)
 							}
 						}
 					}
