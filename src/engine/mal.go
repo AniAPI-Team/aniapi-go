@@ -160,9 +160,9 @@ func (m *MALSearch) scrapeElement(uri string) *models.Anime {
 		wg.Wait()
 		m.getAnilistData(anime)
 		return anime
-	} else {
-		return nil
 	}
+
+	return nil
 }
 
 func (m *MALSearch) getAnilistData(a *models.Anime) {
