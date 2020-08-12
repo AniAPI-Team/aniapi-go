@@ -141,6 +141,7 @@ func (m *MALSearch) scrapeElement(uri string) *models.Anime {
 
 	c.OnError(func(_ *colly.Response, err error) {
 		log.Printf("ERROR: %s", err.Error())
+		wg.Done()
 		return
 	})
 
