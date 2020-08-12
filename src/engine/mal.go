@@ -68,15 +68,17 @@ func (m *MALSearch) Start() {
 				e.ForEach("tr td .picSurround a", func(_ int, el *colly.HTMLElement) {
 					anime := m.scrapeElement(el.Attr("href"))
 
-					if anime.IsValid() {
-						if anime.ID != 0 {
-							m.scraper.UpdateProcess(anime)
-						}
+					if anime != nil {
+						if anime.IsValid() {
+							if anime.ID != 0 {
+								m.scraper.UpdateProcess(anime)
+							}
 
-						anime.Save()
+							anime.Save()
 
-						for _, module := range m.scraper.Modules {
-							go module.Start(anime, c)
+							for _, module := range m.scraper.Modules {
+								go module.Start(anime, c)
+							}
 						}
 					}
 
@@ -100,6 +102,7 @@ func (m *MALSearch) Start() {
 
 func (m *MALSearch) scrapeElement(uri string) *models.Anime {
 	anime := &models.Anime{}
+	completed := true
 	c := colly.NewCollector()
 	SetupCollectorProxy(c)
 
@@ -141,7 +144,7 @@ func (m *MALSearch) scrapeElement(uri string) *models.Anime {
 
 	c.OnError(func(_ *colly.Response, err error) {
 		log.Printf("ERROR: %s", err.Error())
-		wg.Done()
+		completed = false
 		return
 	})
 
@@ -153,11 +156,13 @@ func (m *MALSearch) scrapeElement(uri string) *models.Anime {
 
 	c.Visit(uri)
 
-	wg.Wait()
-
-	m.getAnilistData(anime)
-
-	return anime
+	if completed == true {
+		wg.Wait()
+		m.getAnilistData(anime)
+		return anime
+	} else {
+		return nil
+	}
 }
 
 func (m *MALSearch) getAnilistData(a *models.Anime) {
