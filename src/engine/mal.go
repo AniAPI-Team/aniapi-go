@@ -77,11 +77,14 @@ func (m *MALSearch) Start() {
 							anime.Save()
 
 							for _, module := range m.scraper.Modules {
-								go module.Start(anime, c)
+								cl := colly.NewCollector()
+								SetupCollectorProxy(cl)
+								go module.Start(anime, cl)
 							}
 						}
 					}
 
+					anime = nil
 					time.Sleep(500 * time.Millisecond)
 				})
 			})
