@@ -50,11 +50,11 @@ type ALResponseMedia struct {
 
 // Start initializes MAL search engine workflow
 func (m *MALSearch) Start() {
-	letters := strings.Split("BCDEFGHIJKLMNOPQRSTUVWXYZ", "")
+	letters := strings.Split(".ABCDEFGHIJKLMNOPQRSTUVWXYZ", "")
 
 	for _, m.letter = range letters {
 		s := false
-		m.page = 8
+		m.page = 0
 
 		log.Printf("DOING LETTER %s AND PAGE %d", m.letter, m.page+1)
 
