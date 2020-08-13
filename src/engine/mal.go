@@ -84,15 +84,11 @@ func (m *MALSearch) Start() {
 					}
 
 					anime = nil
-
-					//time.Sleep(1000 * time.Millisecond)
 				})
 
 				doc = nil
 			}
 
-			//log.Print("PAGE COMPLETED, WAITING 120 SECONDS FOR NEXT")
-			//time.Sleep(10 * time.Second)
 			m.page++
 		}
 	}
@@ -110,7 +106,7 @@ func (m *MALSearch) scrapeElement(uri string) *models.Anime {
 
 	col := doc.Find("#content table tbody tr td").Eq(0).Find("div")
 
-	anime.MainTitle = doc.Find("#contentWrapper .h1-title span").Text()
+	anime.MainTitle = doc.Find("#contentWrapper .h1-title span").Eq(0).Text()
 	anime.Picture, _ = col.Find("div:nth-child(1) a img").Attr("data-src")
 
 	col.Find(".spaceit_pad").Has("span").Each(func(_ int, s *goquery.Selection) {
