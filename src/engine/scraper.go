@@ -70,13 +70,14 @@ func (s *Scraper) ScrapeURL(url string) (*goquery.Document, error) {
 	req, _ := http.NewRequest("GET", url, nil)
 	resp, err := client.Do(req)
 
-	if resp.StatusCode != 200 {
-		err = errors.New(resp.Status)
-	}
-
 	if err != nil {
 		log.Printf("URL (%s) REQUEST ERROR: %s", url, err.Error())
 		return nil, err
+	}
+
+	if resp.StatusCode != 200 {
+		log.Printf("URL (%s) REQUEST ERROR: %s", url, err.Error())
+		return nil, errors.New(resp.Status)
 	}
 
 	defer resp.Body.Close()

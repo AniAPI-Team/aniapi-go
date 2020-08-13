@@ -34,16 +34,22 @@ func ModuleScrapeURL(url string) (*goquery.Document, error) {
 		Transport: transport,
 	}
 
-	req, _ := http.NewRequest("GET", url, nil)
-	resp, err := client.Do(req)
+	req, err := http.NewRequest("GET", url, nil)
 
-	if resp.StatusCode != 200 {
-		err = errors.New(resp.Status)
+	if err != nil {
+		log.Printf("ERRORE: %s", err.Error())
 	}
+
+	resp, err := client.Do(req)
 
 	if err != nil {
 		log.Printf("URL (%s) REQUEST ERROR: %s", url, err.Error())
 		return nil, err
+	}
+
+	if resp.StatusCode != 200 {
+		log.Printf("URL (%s) REQUEST ERROR: %s", url, err.Error())
+		return nil, errors.New(resp.Status)
 	}
 
 	defer resp.Body.Close()

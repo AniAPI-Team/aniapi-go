@@ -18,9 +18,9 @@ func (d Dreamsub) Start(a *models.Anime) {
 	titles := append([]string{a.MainTitle}, a.AlternativesTitle...)
 	match, count := ModuleFuzzyWuzzy(&d, titles, a)
 
-	log.Printf("[DREAMSUB] MATCHED %s ON %s WITH %d EPISODES", a.MainTitle, match, count)
-
 	if match != "" {
+		log.Printf("[DREAMSUB] MATCHED %s ON %s WITH %d EPISODES", a.MainTitle, match, count)
+
 		if count == 1 {
 			episode := &models.Episode{
 				AnimeID: a.ID,
