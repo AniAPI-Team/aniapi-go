@@ -174,7 +174,6 @@ func (d Dreamsub) getSource(uri string, anime *models.Anime, episode *models.Epi
 
 			if src != "" {
 				d.getSource(src, anime, episode)
-				//c.Visit("https://dreamsub.stream" + src)
 			}
 		}
 	}
