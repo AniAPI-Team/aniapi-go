@@ -3,28 +3,19 @@ package engine
 import (
 	"aniapi-go/models"
 	"aniapi-go/modules"
-	"context"
+	"aniapi-go/utils"
+	"errors"
 	"log"
-	"math"
 	"net/http"
-	"net/url"
-	"os"
 	"runtime"
-	"strconv"
 	"time"
 
-	"github.com/gocolly/colly"
-	"github.com/gocolly/colly/extensions"
+	"github.com/PuerkitoBio/goquery"
 )
-
-// ScraperModule is the basic interface for a module
-type ScraperModule interface {
-	Start(a *models.Anime, c *colly.Collector)
-}
 
 // Scraper is the data definition of the scraper engine
 type Scraper struct {
-	Modules []ScraperModule
+	Modules []modules.Module
 	running bool
 	start   time.Time
 }
@@ -35,13 +26,8 @@ type ScraperInfo struct {
 	StartTime time.Time     `json:"start_time"`
 }
 
-var proxies []*url.URL
-var proxiesUses []int
-
 // Start initializes scraper engine workflow
 func (s *Scraper) Start() {
-	s.loadProxies()
-
 	s.running = true
 	s.start = time.Now()
 	go printMemoryUsed(s)
@@ -71,30 +57,38 @@ func (s *Scraper) UpdateProcess(anime *models.Anime) {
 	go SocketWriteMessage(msg)
 }
 
-func (s *Scraper) loadProxies() {
-	host := os.Getenv("PROXY_HOST")
-	port := os.Getenv("PROXY_PORT")
-	user := os.Getenv("PROXY_USER")
-	password := os.Getenv("PROXY_PASSWORD")
-	count, _ := strconv.Atoi(os.Getenv("PROXY_COUNT"))
-
-	if len(proxies) > 0 {
-		return
+// ScrapeURL tries to parse an URI HTML
+func (s *Scraper) ScrapeURL(url string) (*goquery.Document, error) {
+	transport := &http.Transport{
+		Proxy: utils.GetBestProxy,
 	}
 
-	for i := 1; i <= count; i++ {
-		u := "http://" + user + "-" + strconv.Itoa(i) + ":" + password + "@" + host + ":" + port
-		parsed, err := url.Parse(u)
-
-		if err == nil {
-			proxies = append(
-				proxies,
-				parsed,
-			)
-
-			proxiesUses = append(proxiesUses, 0)
-		}
+	client := http.Client{
+		Transport: transport,
 	}
+
+	req, _ := http.NewRequest("GET", url, nil)
+	resp, err := client.Do(req)
+
+	if resp.StatusCode != 200 {
+		err = errors.New(resp.Status)
+	}
+
+	if err != nil {
+		log.Printf("URL (%s) REQUEST ERROR: %s", url, err.Error())
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
+
+	if err != nil {
+		log.Printf("URL (%s) READING ERROR: %s", url, err.Error())
+		return nil, err
+	}
+
+	return doc, nil
 }
 
 func printMemoryUsed(s *Scraper) {
@@ -103,43 +97,15 @@ func printMemoryUsed(s *Scraper) {
 		runtime.ReadMemStats(&m)
 
 		log.Printf("MEMORY USAGE OF %v MB", (m.Alloc / 1024 / 1024))
-		time.Sleep(30 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
-}
-
-func getBestProxy(pr *http.Request) (*url.URL, error) {
-	selected := &url.URL{}
-	best := math.MaxInt32
-	bestSelected := 0
-
-	for i := 0; i < len(proxies); i++ {
-		uses := proxiesUses[i]
-
-		if uses < best {
-			best = uses
-			bestSelected = i
-			selected = proxies[i]
-
-			ctx := context.WithValue(pr.Context(), colly.ProxyURLKey, proxies[i].String())
-			*pr = *pr.WithContext(ctx)
-		}
-	}
-
-	proxiesUses[bestSelected]++
-	return selected, nil
-}
-
-// SetupCollectorProxy setup colly collector to scrape even better with proxy
-func SetupCollectorProxy(c *colly.Collector) {
-	extensions.RandomUserAgent(c)
-	c.SetProxyFunc(getBestProxy)
 }
 
 // NewScraper creates a new scraper engine
 func NewScraper() *Scraper {
 	return &Scraper{
 		running: false,
-		Modules: []ScraperModule{
+		Modules: []modules.Module{
 			modules.NewDreamsub(),
 			//modules.NewGogoanime(),
 		},

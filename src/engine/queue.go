@@ -3,8 +3,6 @@ package engine
 import (
 	"aniapi-go/models"
 	"time"
-
-	"github.com/gocolly/colly"
 )
 
 // QueueItem is the queue's item data definition
@@ -37,10 +35,7 @@ func StartQueue() {
 				go SocketWriteMessage(msg)
 
 				for _, module := range scraper.Modules {
-					c := colly.NewCollector()
-					SetupCollectorProxy(c)
-
-					module.Start(item.Anime, c)
+					module.Start(item.Anime)
 				}
 
 				item.Completed = true

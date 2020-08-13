@@ -10,11 +10,9 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/gocolly/colly"
 )
 
 // MALSearch is the data definition of the MAL search engine
@@ -52,120 +50,100 @@ type ALResponseMedia struct {
 
 // Start initializes MAL search engine workflow
 func (m *MALSearch) Start() {
-	letters := strings.Split(".ABCDEFGHIJKLMNOPQRSTUVWXYZ", "")
+	letters := strings.Split("BCDEFGHIJKLMNOPQRSTUVWXYZ", "")
 
 	for _, m.letter = range letters {
 		s := false
-		m.page = 0
+		m.page = 8
+
+		log.Printf("DOING LETTER %s AND PAGE %d", m.letter, m.page+1)
 
 		for s == false {
-			c := colly.NewCollector()
-			SetupCollectorProxy(c)
-
 			uri := fmt.Sprintf("https://myanimelist.net/anime.php?letter=%s&show=%d", m.letter, m.page*50)
+			doc, err := m.scraper.ScrapeURL(uri)
 
-			c.OnHTML(".js-categories-seasonal.js-block-list.list tbody", func(e *colly.HTMLElement) {
-				e.ForEach("tr td .picSurround a", func(_ int, el *colly.HTMLElement) {
-					anime := m.scrapeElement(el.Attr("href"))
+			if err != nil {
+				s = true
+			} else {
+				doc.Find(".js-categories-seasonal.js-block-list.list tbody tr td .picSurround a").Each(func(_ int, s *goquery.Selection) {
+					animeURL, _ := s.Attr("href")
+					anime := m.scrapeElement(animeURL)
 
 					if anime != nil {
 						if anime.IsValid() {
+							anime.Save()
+
 							if anime.ID != 0 {
 								m.scraper.UpdateProcess(anime)
 							}
 
-							anime.Save()
-
 							for _, module := range m.scraper.Modules {
-								cl := colly.NewCollector()
-								SetupCollectorProxy(cl)
-								module.Start(anime, cl)
+								module.Start(anime)
 							}
 						}
 					}
 
 					anime = nil
-					time.Sleep(500 * time.Millisecond)
+
+					//time.Sleep(1000 * time.Millisecond)
 				})
-			})
 
-			c.OnError(func(_ *colly.Response, err error) {
-				log.Printf("ERROR: %s", err.Error())
-				s = true
-			})
+				doc = nil
+			}
 
-			c.Visit(uri)
-
-			log.Print("PAGE COMPLETED, WAITING 120 SECONDS FOR NEXT")
-			time.Sleep(10 * time.Second)
+			//log.Print("PAGE COMPLETED, WAITING 120 SECONDS FOR NEXT")
+			//time.Sleep(10 * time.Second)
 			m.page++
 		}
 	}
 }
 
 func (m *MALSearch) scrapeElement(uri string) *models.Anime {
+	start := time.Now()
 	anime := &models.Anime{}
-	completed := true
-	c := colly.NewCollector()
-	SetupCollectorProxy(c)
 
-	var wg sync.WaitGroup
-	wg.Add(1)
+	doc, err := m.scraper.ScrapeURL(uri)
 
-	c.OnHTML("#contentWrapper .h1-title span", func(e *colly.HTMLElement) {
-		anime.MainTitle = e.Text
-	})
+	if err != nil {
+		return nil
+	}
 
-	c.OnHTML("#content", func(e *colly.HTMLElement) {
-		col := e.DOM.Find("table tbody tr td").Eq(0).Find("div")
+	col := doc.Find("#content table tbody tr td").Eq(0).Find("div")
 
-		anime.Picture, _ = col.Find("div:nth-child(1) a img").Attr("data-src")
+	anime.MainTitle = doc.Find("#contentWrapper .h1-title span").Text()
+	anime.Picture, _ = col.Find("div:nth-child(1) a img").Attr("data-src")
 
-		col.Find(".spaceit_pad").Has("span").Each(func(_ int, s *goquery.Selection) {
-			synonims := false
-			s.Contents().Each(func(_ int, t *goquery.Selection) {
-				title := strings.TrimSpace(t.Text())
+	col.Find(".spaceit_pad").Has("span").Each(func(_ int, s *goquery.Selection) {
+		synonims := false
+		s.Contents().Each(func(_ int, t *goquery.Selection) {
+			title := strings.TrimSpace(t.Text())
 
-				if !t.Is("span") && len(title) != 0 {
-					if synonims == true {
-						titles := strings.Split(title, ", ")
-						anime.AlternativesTitle = append(anime.AlternativesTitle, titles...)
-						synonims = false
-					}
-
-					anime.AlternativesTitle = append(anime.AlternativesTitle, title)
-				} else if t.Is("span") && title == "Synonyms:" {
-					synonims = true
+			if !t.Is("span") && len(title) != 0 {
+				if synonims == true {
+					titles := strings.Split(title, ", ")
+					anime.AlternativesTitle = append(anime.AlternativesTitle, titles...)
+					synonims = false
 				}
-			})
-		})
 
-		col.Find("div").Has("span.dark_text").Each(func(_ int, s *goquery.Selection) {
-			getItemByKeyword(s, anime)
+				anime.AlternativesTitle = append(anime.AlternativesTitle, title)
+			} else if t.Is("span") && title == "Synonyms:" {
+				synonims = true
+			}
 		})
 	})
 
-	c.OnError(func(_ *colly.Response, err error) {
-		log.Printf("ERROR: %s", err.Error())
-		completed = false
-		return
-	})
-
-	c.OnScraped(func(_ *colly.Response) {
-		wg.Done()
+	col.Find("div").Has("span.dark_text").Each(func(_ int, s *goquery.Selection) {
+		getItemByKeyword(s, anime)
 	})
 
 	anime.MyAnimeListID, _ = strconv.Atoi(strings.Split(uri, "/")[4])
 
-	c.Visit(uri)
+	m.getAnilistData(anime)
 
-	if completed == true {
-		wg.Wait()
-		m.getAnilistData(anime)
-		return anime
-	}
+	elapsed := time.Since(start)
+	log.Printf("SCRAPED %s (%d|%d) IN %s", anime.MainTitle, anime.MyAnimeListID, anime.AniListID, elapsed)
 
-	return nil
+	return anime
 }
 
 func (m *MALSearch) getAnilistData(a *models.Anime) {
@@ -195,6 +173,8 @@ func (m *MALSearch) getAnilistData(a *models.Anime) {
 		return
 	}
 
+	defer resp.Body.Close()
+
 	body, _ := ioutil.ReadAll(resp.Body)
 
 	result := &ALResponse{}
@@ -207,8 +187,6 @@ func (m *MALSearch) getAnilistData(a *models.Anime) {
 			continue
 		}
 	}
-
-	resp.Body.Close()
 }
 
 func getItemByKeyword(s *goquery.Selection, a *models.Anime) {

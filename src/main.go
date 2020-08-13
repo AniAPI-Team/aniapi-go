@@ -4,12 +4,20 @@ import (
 	"aniapi-go/api"
 	"aniapi-go/database"
 	"aniapi-go/engine"
+	"aniapi-go/utils"
 	"log"
 	"net/http"
 	"os"
+
+	_ "net/http/pprof"
 )
 
 func main() {
+
+	go func() {
+		log.Fatal(http.ListenAndServe(":6060", nil))
+	}()
+
 	server := engine.NewServer()
 
 	server.Handle("/api/.*", api.Router)
@@ -24,6 +32,7 @@ func main() {
 
 	go engine.StartQueue()
 
+	utils.LoadProxies()
 	scraper := engine.NewScraper()
 	go scraper.Start()
 

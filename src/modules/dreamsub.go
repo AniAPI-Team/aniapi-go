@@ -3,22 +3,22 @@ package modules
 import (
 	"aniapi-go/models"
 	"log"
-	"math"
 	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/gocolly/colly"
-	"github.com/lithammer/fuzzysearch/fuzzy"
 )
 
 // Dreamsub is the https://dreamsub.stream/ module
 type Dreamsub struct{}
 
 // Start the scraping flow
-func (d Dreamsub) Start(a *models.Anime, c *colly.Collector) {
-	match, count := d.findMatch(a, c)
+func (d Dreamsub) Start(a *models.Anime) {
+	titles := append([]string{a.MainTitle}, a.AlternativesTitle...)
+	match, count := ModuleFuzzyWuzzy(&d, titles, a)
+
+	log.Printf("[DREAMSUB] MATCHED %s ON %s WITH %d EPISODES", a.MainTitle, match, count)
 
 	if match != "" {
 		if count == 1 {
@@ -29,175 +29,161 @@ func (d Dreamsub) Start(a *models.Anime, c *colly.Collector) {
 				Region:  models.RegionIT,
 				Title:   "",
 			}
-			d.getSource(match, a, episode, c)
+			d.getSource(match, a, episode)
 			episode.Save()
 		} else {
-			d.getEpisodes(match, a, c)
+			d.getEpisodes(match, a)
 		}
 	}
 }
 
-func (d Dreamsub) findMatch(a *models.Anime, c *colly.Collector) (string, int) {
-	titles := append([]string{a.MainTitle}, a.AlternativesTitle...)
-	match := ""
-	episodes := 0
-	best := 99
-	ratio := 0.0
+// GetList retrieves search results list
+func (d Dreamsub) GetList(title string) *goquery.Selection {
+	query := "https://dreamsub.stream/search/?q=" + url.QueryEscape(title)
+	doc, err := ModuleScrapeURL(query)
 
-	var otherMatches []*models.Matching
-
-	for _, title := range titles {
-		query := "https://dreamsub.stream/search/?q=" + url.QueryEscape(title)
-
-		c.OnHTML("#main-content .goblock", func(e *colly.HTMLElement) {
-			e.ForEach(".tvBlock", func(_ int, el *colly.HTMLElement) {
-				target := strings.ToLower(el.DOM.Find(".tvTitle .title").Text())
-				source := strings.Replace(strings.ToLower(title), ":", "", -1)
-
-				score := fuzzy.RankMatch(source, target)
-
-				bigger := math.Max(float64(len(source)), float64(len(target)))
-				r := (bigger - float64(score)) / bigger
-
-				desc, _ := el.DOM.Find(".desc").Html()
-				part := strings.Split(desc, "<br/>")[1]
-				eps, _ := strconv.Atoi(strings.Replace(strings.TrimSpace(strings.Replace(strings.Split(part, ",")[0], "<b>Episodi</b>:", "", 1)), "+", "", 1))
-
-				if score < best && score != -1 && score <= 1 {
-					best = score
-					match, _ = el.DOM.Find(".showStreaming a").Eq(0).Attr("href")
-
-					episodes = eps
-
-					ratio = r
-				}
-
-				if (score > 1 && len(source) > 2) || (len(source) <= 2 && score > 1 && score <= 10) {
-					url, _ := el.DOM.Find(".showStreaming a").Eq(0).Attr("href")
-					otherMatches = append(otherMatches, &models.Matching{
-						AnimeID:  a.ID,
-						Episodes: eps,
-						From:     "dreamsub",
-						Ratio:    r,
-						Title:    target,
-						URL:      "https://dreamsub.stream" + url,
-					})
-				}
-			})
-		})
-
-		c.OnError(func(_ *colly.Response, err error) {
-			log.Printf("ERROR: %s", err.Error())
-			return
-		})
-
-		c.Visit(query)
-
-		if match == "" {
-			for _, m := range otherMatches {
-				m.Save()
-			}
-		}
+	if err == nil {
+		return doc.Find("#main-content .goblock .tvBlock")
 	}
 
-	if match != "" {
-		log.Printf("[DREAMSUB] MATCHED %s ON %s WITH %f RATIO", a.MainTitle, match, ratio)
-	} else {
-		matches, err := models.FindMatchings(a.ID, "dreamsub", "votes", true)
-
-		if err == nil && len(matches) > 0 {
-			if matches[0].Votes > 0 {
-				match = "/" + strings.Join(strings.Split(matches[0].URL, "/")[3:5], "/")
-				episodes = matches[0].Episodes
-				log.Printf("[DREAMSUB] VOTE MATCHED %s ON %s WITH %d VOTES", a.MainTitle, match, matches[0].Votes)
-			}
-		}
-	}
-
-	return match, episodes
+	return nil
 }
 
-func (d Dreamsub) getEpisodes(uri string, anime *models.Anime, c *colly.Collector) {
-	//c := colly.NewCollector()
+// GetTarget retrieves search result title
+func (d Dreamsub) GetTarget(s *goquery.Selection) string {
+	return strings.ToLower(s.Find(".tvTitle .title").Text())
+}
 
-	c.OnHTML("#episodes-sv", func(e *colly.HTMLElement) {
-		e.ForEachWithBreak(".ep-item", func(i int, el *colly.HTMLElement) bool {
-			noepisodes := el.DOM.Find("center")
+// GetEpisodesNumber retrieves search result episodes number
+func (d Dreamsub) GetEpisodesNumber(s *goquery.Selection) int {
+	desc, _ := s.Find(".desc").Html()
+	part := strings.Split(desc, "<br/>")[1]
+	eps, _ := strconv.Atoi(strings.Replace(strings.TrimSpace(strings.Replace(strings.Split(part, ",")[0], "<b>Episodi</b>:", "", 1)), "+", "", 1))
 
-			if noepisodes.Length() == 1 {
-				return false
-			}
+	return eps
+}
 
-			title := ""
-			parts := strings.Split(el.DOM.Find(".sli-name a").Text(), ": ")
+// GetURL retrieves search result episode url
+func (d Dreamsub) GetURL(s *goquery.Selection) string {
+	url, _ := s.Find(".showStreaming a").Eq(0).Attr("href")
+	return url
+}
 
-			if len(parts) > 1 {
-				title = strings.TrimSpace(parts[1])
-			}
-			link, _ := el.DOM.Find(".sli-name a").Attr("href")
+// AddToMatches adds a search result to possible matchings
+func (d Dreamsub) AddToMatches(animeID int, episodes int, ratio float64, target string, url string) *models.Matching {
+	return &models.Matching{
+		AnimeID:  animeID,
+		Episodes: episodes,
+		From:     "dreamsub",
+		Ratio:    ratio,
+		Title:    target,
+		URL:      "https://dreamsub.stream" + url,
+	}
+}
 
-			if title == "TBA" && link == "" {
-				return true
-			}
+// GetMatches retrieves an anime model possible matchings
+func (d Dreamsub) GetMatches(animeID int) []models.Matching {
+	matchings, err := models.FindMatchings(animeID, "dreamsub", "votes", true)
 
-			episode := &models.Episode{
-				AnimeID: anime.ID,
-				From:    "dreamsub",
-				Number:  1,
-				Region:  models.RegionIT,
-				Title:   "",
-			}
-			d.getSource(link, anime, episode, c)
-			episode.Title = title
-			episode.Number = i + 1
+	if err != nil {
+		return nil
+	}
 
-			episode.Save()
+	return matchings
+}
 
+func (d Dreamsub) getEpisodes(uri string, anime *models.Anime) {
+	doc, err := ModuleScrapeURL("https://dreamsub.stream" + uri)
+
+	if err != nil {
+		return
+	}
+
+	doc.Find("#episodes-sv .ep-item").EachWithBreak(func(i int, s *goquery.Selection) bool {
+		noepisodes := s.Find("center")
+
+		if noepisodes.Length() == 1 {
+			return false
+		}
+
+		title := ""
+		parts := strings.Split(s.Find(".sli-name a").Text(), ": ")
+
+		if len(parts) > 1 {
+			title = strings.TrimSpace(parts[1])
+		}
+		link, _ := s.Find(".sli-name a").Attr("href")
+
+		if title == "TBA" && link == "" {
 			return true
-		})
-	})
+		}
 
-	c.Visit("https://dreamsub.stream" + uri)
+		episode := &models.Episode{
+			AnimeID: anime.ID,
+			From:    "dreamsub",
+			Number:  1,
+			Region:  models.RegionIT,
+			Title:   "",
+		}
+		d.getSource(link, anime, episode)
+		episode.Title = title
+		episode.Number = i + 1
+
+		episode.Save()
+
+		log.Printf("[DREAMSUB] SAVED EPISODE %d OF %s", i+1, anime.MainTitle)
+
+		return true
+	})
 }
 
-func (d Dreamsub) getSource(uri string, anime *models.Anime, episode *models.Episode, c *colly.Collector) {
-	//c := colly.NewCollector()
-
-	c.OnHTML("#main-content.onlyDesktop .goblock-content div", func(e *colly.HTMLElement) {
-		source := ""
-		max := 0
-
-		e.DOM.Find("a.dwButton").Each(func(_ int, a *goquery.Selection) {
-			quality, _ := strconv.Atoi(strings.Replace(a.Text(), "p", "", 1))
-
-			if quality > max {
-				max = quality
-				source, _ = a.Attr("href")
-			}
-		})
-
-		episode.Source = source
-	})
-
-	c.OnHTML("#iFrameVideoSub", func(e *colly.HTMLElement) {
-		if episode.Source == "" {
-			src := e.Attr("src")
-
-			if src != "" {
-				c.Visit("https://dreamsub.stream" + src)
-			}
-		}
-	})
-
-	c.OnHTML("#gotVVVVID", func(e *colly.HTMLElement) {
-		episode.Source = e.Attr("href")
-	})
-
+func (d Dreamsub) getSource(uri string, anime *models.Anime, episode *models.Episode) {
 	if uri == "" {
 		return
 	}
 
-	c.Visit("https://dreamsub.stream" + uri)
+	doc, err := ModuleScrapeURL("https://dreamsub.stream" + uri)
+
+	if err != nil {
+		return
+	}
+
+	main := doc.Find("#main-content.onlyDesktop .goblock-content div")
+
+	if main.Nodes != nil {
+		source := ""
+		max := 0
+
+		main.Find("a.dwButton").Each(func(_ int, s *goquery.Selection) {
+			quality, _ := strconv.Atoi(strings.Replace(s.Text(), "p", "", 1))
+
+			if quality > max {
+				max = quality
+				source, _ = s.Attr("href")
+			}
+		})
+
+		episode.Source = source
+	}
+
+	iframe := doc.Find("#iFrameVideoSub")
+
+	if iframe.Nodes != nil {
+		if episode.Source == "" {
+			src, _ := iframe.Attr("src")
+
+			if src != "" {
+				d.getSource(src, anime, episode)
+				//c.Visit("https://dreamsub.stream" + src)
+			}
+		}
+	}
+
+	vvvvid := doc.Find("#gotVVVVID")
+
+	if vvvvid.Nodes != nil {
+		episode.Source, _ = vvvvid.Attr("href")
+	}
 }
 
 // NewDreamsub creates a new dreamsub module
