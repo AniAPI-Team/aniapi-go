@@ -48,6 +48,7 @@ func ModuleScrapeURL(url string) (*goquery.Document, error) {
 	}
 
 	if resp.StatusCode != 200 {
+		err = errors.New(resp.Status)
 		log.Printf("URL (%s) REQUEST ERROR: %s", url, err.Error())
 		return nil, errors.New(resp.Status)
 	}
