@@ -24,6 +24,7 @@ type Scraper struct {
 type ScraperInfo struct {
 	Anime     *models.Anime `json:"anime"`
 	StartTime time.Time     `json:"start_time"`
+	Memory    uint64        `json:"memory"`
 }
 
 // Start initializes scraper engine workflow
@@ -44,9 +45,18 @@ func (s *Scraper) Start() {
 
 // UpdateProcess updates scraper process
 func (s *Scraper) UpdateProcess(anime *models.Anime) {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+
+	allocated := m.Alloc / 1024 / 1024
+	total := m.Sys / 1024 / 1024
+
+	memory := (100 * allocated) / total
+
 	ss := &ScraperInfo{
 		Anime:     anime,
 		StartTime: s.start,
+		Memory:    memory,
 	}
 
 	msg := &SocketMessage{

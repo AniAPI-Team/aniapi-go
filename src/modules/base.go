@@ -70,7 +70,6 @@ func ModuleFuzzyWuzzy(m Module, titles []string, a *models.Anime) (string, int) 
 	match := ""
 	episodes := 0
 	best := 99
-	ratio := 0.0
 	var otherMatches []*models.Matching
 
 	for _, title := range titles {
