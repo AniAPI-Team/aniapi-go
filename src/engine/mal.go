@@ -106,7 +106,7 @@ func (m *MALSearch) scrapeElement(uri string) *models.Anime {
 
 	col := doc.Find("#content table tbody tr td").Eq(0).Find("div")
 
-	title, _ := doc.Find("#contentWrapper .h1-title .name .title-name").Html()
+	title, _ := doc.Find("#contentWrapper .h1-title .title-name").Html()
 	anime.MainTitle = strings.Split(title, "<br/>")[0]
 	anime.Picture, _ = col.Find("div:nth-child(1) a img").Attr("data-src")
 
