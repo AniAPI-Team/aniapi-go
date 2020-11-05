@@ -3,6 +3,8 @@ AniAPI Golang is a REST API meant to expose a collection of **anime**'s streamin
 
 It uses [MyAnimeList](https://myanimelist.net) as resource validator, to ensure a minimum quality level.
 
+[Documentation here](https://github.com/AniAPI-Team/aniapi-go/wiki)
+
 ## Requirements
 * Golang 1.14
 * MongoDB instance
